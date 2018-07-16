@@ -15,7 +15,7 @@ $ cd react-ts-canvas-photo-upload
 $ yarn install
 ```
 
-or online demo (You Need GCS API Key and allow this page.)
+or online demo (You Need GCS API Key and you shuold allow this page.)
 <http://www.clarekang.me/react-ts-canvas-photo-upload>
 
 Enjoy it 😎
