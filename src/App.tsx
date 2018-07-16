@@ -169,7 +169,7 @@ class App extends React.Component<{}, AppState> {
         img.onload = () => {
           this.img = img;
           this.setState({
-            message: "",
+            message: "File uploading...",
           });
           this.fileUpload(imageData)
             .then((result: PhotoResult) => {
