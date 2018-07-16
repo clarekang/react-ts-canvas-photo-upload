@@ -12,8 +12,6 @@ import {
   PhotoResult,
 } from "./Photo";
 
-const googleKey = "YOUR-GOOGLE-API-KEY";
-
 const canvasWidth = 540;
 const canvasHeight = 720;
 const imageWidth = 225;
@@ -74,18 +72,21 @@ const Message = styled.p`
   margin-bottom: 10px;
 `;
 
-interface AppProps {
-  onSubmit?: (photo: any) => void;
-  onClose?: () => void;
-}
+const ApiInput = styled.input`
+  width: 400px;
+  height: 20px;
+  font-size: 1.2em;
+`;
 
 interface AppState {
   message: string;
+  googleKey: string;
 }
 
-class App extends React.Component<AppProps, AppState> {
+class App extends React.Component<{}, AppState> {
   public state = {
     message: "사진을 등록해주세요.",
+    googleKey: "",
   };
 
   private canvas!: HTMLCanvasElement;
@@ -108,7 +109,7 @@ class App extends React.Component<AppProps, AppState> {
           <h1 className="App-title">React TypeScript Canvas Photo Upload</h1>
           <small>React, TypeScript and Canvas Photo Upload with GCS</small>
         </header>
-        <div>
+        <>
           <Content>
             <Column>
               <Header>사진 가이드</Header>
@@ -135,13 +136,27 @@ class App extends React.Component<AppProps, AppState> {
               />
             </Column>
           </Content>
-        </div>
+          <Content>
+            <ApiInput
+              name="googleKey"
+              onChange={this.handleOnKeyChange}
+              value={this.state.googleKey}
+              placeholder="YOUR-GOOGLE-API-KEY"
+            />
+          </Content>
+        </>
       </div>
     );
   }
 
   private refCanvas = (canvas: HTMLCanvasElement) => {
     this.canvas = canvas;
+  };
+
+  private handleOnKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    this.setState({
+      googleKey: e.target.value,
+    });
   };
 
   private handleOnFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -156,14 +171,19 @@ class App extends React.Component<AppProps, AppState> {
           this.setState({
             message: "",
           });
-          this.fileUpload(imageData).then((result: PhotoResult) => {
-            if (!result.info && !!result.message) {
-              this.setState({
-                message: result.message,
-              });
-            }
-            this.drawInCanvas(result.info!);
-          });
+
+          this.fileUpload(imageData)
+            .then((result: PhotoResult) => {
+              if (!result.info && !!result.message) {
+                this.setState({
+                  message: result.message,
+                });
+              }
+              this.drawInCanvas(result.info!);
+            })
+            .catch(() => {
+              alert("Not Valid Google API Key Or Data");
+            });
         };
       };
       reader.readAsDataURL(e.target.files[0]);
@@ -172,23 +192,28 @@ class App extends React.Component<AppProps, AppState> {
 
   private fileUpload = (content: string): Promise<any> => {
     return new Promise((resolve, reject) => {
-      const body: PhotoRequests = {
-        requests: [
-          {
-            image: {
-              content,
-            },
-            features: [
-              {
-                type: "FACE_DETECTION",
+      if (!!this.state.googleKey) {
+        const body: PhotoRequests = {
+          requests: [
+            {
+              image: {
+                content,
               },
-            ],
-          },
-        ],
-      };
-      this.uploadPhoto(body)
-        .then((res: PhotoResponses) => resolve(this.getPhotoInfo(res)))
-        .catch(() => reject(false));
+              features: [
+                {
+                  type: "FACE_DETECTION",
+                },
+              ],
+            },
+          ],
+        };
+
+        this.uploadPhoto(body)
+          .then((res: PhotoResponses) => resolve(this.getPhotoInfo(res)))
+          .catch(() => reject(false));
+      } else {
+        reject(false);
+      }
     });
   };
 
@@ -259,7 +284,9 @@ class App extends React.Component<AppProps, AppState> {
 
   private uploadPhoto(body: any): Promise<PhotoResponses> {
     return fetch(
-      `https://vision.googleapis.com/v1/images:annotate?key=${googleKey}`,
+      `https://vision.googleapis.com/v1/images:annotate?key=${
+        this.state.googleKey
+      }`,
       {
         method: "POST",
         headers: new Headers({

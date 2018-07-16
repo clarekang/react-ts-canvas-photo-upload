@@ -2,7 +2,7 @@
   "name": "react-ts-canvas-photo-upload",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://clarekang.github.io/react-ts-canvas-photo-upload",
+  "homepage": "https://ClareKang.github.io/react-ts-canvas-photo-upload",
   "dependencies": {
     "react": "^16.4.1",
     "react-dom": "^16.4.1",
