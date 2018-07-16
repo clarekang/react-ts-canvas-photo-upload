@@ -24,16 +24,16 @@ interface Poly {
   vertices: Vertice[];
 }
 
-export interface PhotoInfo {
-  info?: {
-    top: number;
-    left: number;
-    bottom: number;
-    right: number;
-    width: number;
-    height: number;
-  };
+export interface PhotoResult {
+  info?: PhotoInfo;
   message: string;
+}
+
+export interface PhotoInfo {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 interface Position extends Vertice {

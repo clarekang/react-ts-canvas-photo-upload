@@ -4,45 +4,74 @@ import "./App.css";
 
 import logo from "./logo.svg";
 
-import { PhotoInfo, PhotoRequests, PhotoResponses, Vertice } from "./Photo";
+import {
+  PhotoInfo,
+  PhotoRequests,
+  PhotoResponses,
+  Vertice,
+  PhotoResult,
+} from "./Photo";
 
-const googleKey = "asdf";
+const googleKey = "YOUR-GOOGLE-API-KEY";
 
-const FACE_WIDTH = 35;
-const FACE_POSITION_TOP = 0.35;
-const MIN_IMAGE_WIDTH_IN_PX = 540;
-const ASPECT_RATIO = 75;
-const canvasWidth = 300;
-const canvasHeight = 400;
+const canvasWidth = 540;
+const canvasHeight = 720;
+const imageWidth = 225;
+const imageHeight = 300;
 
-const sample = require("./assets/photo-ex.png");
+const faceWidthPx = 45;
+const facePositionTop = 0.25;
+const minImageWidthPx = 420;
+const aspectRatio = canvasWidth / canvasHeight;
+
+const sample = require("./assets/photo-guide.png");
 const background = require("./assets/unregistered-image.png");
-const errorBg = require("./assets/photo-viewer.png");
 const Img = styled.img`
-  width: ${canvasWidth}px;
-  height: ${canvasHeight}px;
+  width: ${imageWidth}px;
+  height: ${imageHeight}px;
 `;
 
-const ImageBackground = styled.div`
-  width: ${canvasWidth}px;
-  height: ${canvasHeight}px;
+const Canvas = styled.canvas`
+  width: ${imageWidth}px;
+  height: ${imageHeight}px;
   background: url(${background}) no-repeat center center;
+  background-size: ${imageWidth}px ${imageHeight}px;
 `;
 
 const GuideText = styled.ul`
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  list-style-image: none;
   display: block;
   font-size: 0.9em;
+  margin-top: 10px;
+  text-align: left;
 `;
 
-const ModalContent = styled.div`
+const Content = styled.div`
   display: flex;
   flex-direction: row;
   justify-content: center;
+  padding: 20px;
 `;
 
-const ModalColumn = styled.div`
+const Column = styled.div`
   width: 300px;
   padding: 10px;
+  text-align: center;
+`;
+
+const Header = styled.h4`
+  text-align: left;
+  margin-top: 0;
+  margin-bottom: 10px;
+`;
+
+const Message = styled.p`
+  text-align: center;
+  margin-top: 10px;
+  margin-bottom: 10px;
 `;
 
 interface AppProps {
@@ -51,65 +80,68 @@ interface AppProps {
 }
 
 interface AppState {
-  imageData: string;
-  canvas: HTMLElement | null;
-  img: HTMLImageElement;
   message: string;
 }
 
 class App extends React.Component<AppProps, AppState> {
   public state = {
-    imageData: "",
-    canvas: null,
-    img: new Image(),
-    message: "",
+    message: "사진을 등록해주세요.",
   };
+
+  private canvas!: HTMLCanvasElement;
+  private img!: HTMLImageElement;
+  private errorBackground!: HTMLImageElement;
+
+  public componentDidMount() {
+    const errorBackground = new Image();
+    errorBackground.src = require("./assets/photo-viewer.png");
+    errorBackground.onload = () => {
+      this.errorBackground = errorBackground;
+    };
+  }
 
   public render() {
     return (
       <div className="App">
         <header className="App-header">
           <img src={logo} className="App-logo" alt="logo" />
-          <h1 className="App-title">Welcome to React</h1>
+          <h1 className="App-title">React TypeScript Canvas Photo Upload</h1>
+          <small>React, TypeScript and Canvas Photo Upload with GCS</small>
         </header>
         <div>
-          <ModalContent>
-            <ModalColumn>
-              <h4>사진 가이드</h4>
+          <Content>
+            <Column>
+              <Header>사진 가이드</Header>
               <Img src={sample} />
               <GuideText>
                 <li>얼굴이 잘 보이는 단독 사진을 업로드해주세요.</li>
                 <li>미소 짓고 있는 사진을 등록해주세요.</li>
               </GuideText>
-            </ModalColumn>
-            <ModalColumn>
-              <h4>사진 등록</h4>
-              <ImageBackground>
-                <canvas
-                  ref={this.refCanvas}
-                  width={canvasWidth}
-                  height={canvasHeight}
-                />
-                {this.state.message && <p>{this.state.message}</p>}
-              </ImageBackground>
+            </Column>
+            <Column>
+              <Header>사진 등록</Header>
+              <Canvas
+                innerRef={this.refCanvas}
+                width={canvasWidth}
+                height={canvasHeight}
+              />
+              <Message>{this.state.message}</Message>
               <input
                 type="file"
                 name="photo"
                 onChange={this.handleOnFileUpload}
-                value={this.state.img.name}
+                value={this.img && this.img.name}
                 accept=".jpg,.png,.bmp,.jpeg"
               />
-            </ModalColumn>
-          </ModalContent>
+            </Column>
+          </Content>
         </div>
       </div>
     );
   }
 
-  private refCanvas = (element: HTMLCanvasElement) => {
-    this.setState({
-      canvas: element,
-    });
+  private refCanvas = (canvas: HTMLCanvasElement) => {
+    this.canvas = canvas;
   };
 
   private handleOnFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,18 +152,17 @@ class App extends React.Component<AppProps, AppState> {
         const img = new Image();
         img.src = reader.result;
         img.onload = () => {
+          this.img = img;
           this.setState({
-            imageData: reader.result,
-            img,
             message: "",
           });
-          this.fileUpload(imageData).then((photoInfo: PhotoInfo) => {
-            if (!photoInfo.info && !!photoInfo.message) {
+          this.fileUpload(imageData).then((result: PhotoResult) => {
+            if (!result.info && !!result.message) {
               this.setState({
-                message: photoInfo.message,
+                message: result.message,
               });
             }
-            this.drawInCanvas(photoInfo);
+            this.drawInCanvas(result.info!);
           });
         };
       };
@@ -190,25 +221,35 @@ class App extends React.Component<AppProps, AppState> {
     });
 
     const faceWidth = rightBound - leftBound;
-    const cropWidth = Math.round((faceWidth / FACE_WIDTH) * 100);
-    const cropHeight = Math.round((cropWidth / ASPECT_RATIO) * 100);
+    const cropWidth = Math.round((faceWidth / faceWidthPx) * 100);
+    const cropHeight = Math.round(cropWidth / aspectRatio);
 
-    if (cropWidth < MIN_IMAGE_WIDTH_IN_PX) {
+    if (cropWidth < minImageWidthPx) {
       return { message: "지금보다 얼굴이 크게 보여야합니다." };
     }
 
-    const top = Math.round(topBound - cropHeight * FACE_POSITION_TOP);
+    const top = Math.round(topBound - cropHeight * facePositionTop);
     const bottom = top + cropHeight;
     const horizontalCenter = leftBound + Math.round(faceWidth / 2);
     const left = horizontalCenter - cropWidth / 2;
     const right = left + cropWidth;
 
+    if (left < 0 || top < 0 || right > imageWidth || bottom > imageHeight) {
+      return {
+        info: {
+          x: left,
+          y: top,
+          width: cropWidth,
+          height: cropHeight,
+        },
+        message: "얼굴이 화면 정중앙에 놓여야 합니다.",
+      };
+    }
+
     return {
       info: {
-        top,
-        bottom,
-        left,
-        right,
+        x: left,
+        y: top,
         width: cropWidth,
         height: cropHeight,
       },
@@ -232,53 +273,35 @@ class App extends React.Component<AppProps, AppState> {
   }
 
   private drawInCanvas = (photoInfo: PhotoInfo) => {
-    const { canvas, img } = this.state;
-    const { top, left, right, bottom, width, height } = photoInfo.info;
-    const ctx = canvas.getContext("2d");
-
-    if (left < 0 || top < 0 || right > img.width || bottom > img.height) {
-      this.setState({
-        message: "얼굴이 화면 정중앙에 놓여야 합니다.",
-      });
+    const ctx = this.canvas.getContext("2d") || null;
+    if (!!ctx) {
+      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+      if (!!photoInfo) {
+        const { x, y, width, height } = photoInfo;
+        const ratio = canvasWidth / width;
+        ctx.drawImage(this.errorBackground, 0, 0, canvasWidth, canvasHeight);
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(
+          x * -1 * ratio,
+          y * -1 * ratio,
+          this.img.width * ratio,
+          this.img.height * ratio,
+        );
+        ctx.drawImage(
+          this.img,
+          x,
+          y,
+          width,
+          height,
+          0,
+          0,
+          Math.round(width * ratio),
+          Math.round(height * ratio),
+        );
+      } else {
+        ctx.drawImage(this.img, 0, 0, this.img.width, this.img.height);
+      }
     }
-
-    const x = left;
-    const y = top;
-    const ratio = canvasWidth / width;
-
-    // 캔버스 초기화
-    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-
-    // 캔버스 빨간 영역 출력
-    // ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
-    // ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-    const redBackground = new Image();
-    redBackground.src = errorBg;
-    redBackground.onload = () => {
-      ctx.drawImage(redBackground, 0, 0, canvasWidth, canvasHeight);
-
-      // 캔버스 흰 영역 출력
-      ctx.fillStyle = "#fff";
-      ctx.fillRect(
-        x * -1 * ratio,
-        y * -1 * ratio,
-        img.width * ratio,
-        img.height * ratio,
-      );
-
-      // 캔버스 사진 출력
-      ctx.drawImage(
-        img,
-        x,
-        y,
-        width,
-        height,
-        0,
-        0,
-        Math.round(width * ratio),
-        Math.round(height * ratio),
-      );
-    };
   };
 }
 
