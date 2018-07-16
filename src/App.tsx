@@ -171,10 +171,9 @@ class App extends React.Component<{}, AppState> {
           this.setState({
             message: "",
           });
-
           this.fileUpload(imageData)
             .then((result: PhotoResult) => {
-              if (!result.info && !!result.message) {
+              if (!!result.message) {
                 this.setState({
                   message: result.message,
                 });
@@ -190,7 +189,7 @@ class App extends React.Component<{}, AppState> {
     }
   };
 
-  private fileUpload = (content: string): Promise<any> => {
+  private fileUpload = (content: string): Promise<PhotoResult> => {
     return new Promise((resolve, reject) => {
       if (!!this.state.googleKey) {
         const body: PhotoRequests = {
@@ -207,8 +206,19 @@ class App extends React.Component<{}, AppState> {
             },
           ],
         };
-
-        this.uploadPhoto(body)
+        fetch(
+          `https://vision.googleapis.com/v1/images:annotate?key=${
+            this.state.googleKey
+          }`,
+          {
+            method: "POST",
+            headers: new Headers({
+              Accept: "application/json",
+            }),
+            body: JSON.stringify(body),
+          },
+        )
+          .then(res => res.json())
           .then((res: PhotoResponses) => resolve(this.getPhotoInfo(res)))
           .catch(() => reject(false));
       } else {
@@ -217,7 +227,7 @@ class App extends React.Component<{}, AppState> {
     });
   };
 
-  private getPhotoInfo(data: PhotoResponses) {
+  private getPhotoInfo = (data: PhotoResponses): PhotoResult => {
     if (data.responses.length === 0) {
       return { message: "The face is not recognized." };
     }
@@ -259,7 +269,12 @@ class App extends React.Component<{}, AppState> {
     const left = horizontalCenter - cropWidth / 2;
     const right = left + cropWidth;
 
-    if (left < 0 || top < 0 || right > imageWidth || bottom > imageHeight) {
+    if (
+      left < 0 ||
+      top < 0 ||
+      right > this.img.width ||
+      bottom > this.img.height
+    ) {
       return {
         info: {
           x: left,
@@ -270,7 +285,6 @@ class App extends React.Component<{}, AppState> {
         message: "The face must be in the middle of the screen.",
       };
     }
-
     return {
       info: {
         x: left,
@@ -280,26 +294,9 @@ class App extends React.Component<{}, AppState> {
       },
       message: "Photo Uploaded",
     };
-  }
+  };
 
-  private uploadPhoto(body: any): Promise<PhotoResponses> {
-    return fetch(
-      `https://vision.googleapis.com/v1/images:annotate?key=${
-        this.state.googleKey
-      }`,
-      {
-        method: "POST",
-        headers: new Headers({
-          Accept: "application/json",
-        }),
-        body: JSON.stringify(body),
-      },
-    )
-      .then(res => res.json())
-      .catch(() => false);
-  }
-
-  private drawInCanvas = (photoInfo: PhotoInfo) => {
+  private drawInCanvas = (photoInfo: PhotoInfo): void => {
     const ctx = this.canvas.getContext("2d") || null;
     if (!!ctx) {
       ctx.clearRect(0, 0, canvasWidth, canvasHeight);
