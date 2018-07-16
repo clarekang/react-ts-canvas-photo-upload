@@ -85,7 +85,7 @@ interface AppState {
 
 class App extends React.Component<{}, AppState> {
   public state = {
-    message: "사진을 등록해주세요.",
+    message: "Upload your Photo",
     googleKey: "",
   };
 
@@ -112,15 +112,15 @@ class App extends React.Component<{}, AppState> {
         <>
           <Content>
             <Column>
-              <Header>사진 가이드</Header>
+              <Header>Photo Guidance</Header>
               <Img src={sample} />
               <GuideText>
-                <li>얼굴이 잘 보이는 단독 사진을 업로드해주세요.</li>
-                <li>미소 짓고 있는 사진을 등록해주세요.</li>
+                <li>Please upload a stand-alone photo that looks good.</li>
+                <li>Please upload a photo with smile.</li>
               </GuideText>
             </Column>
             <Column>
-              <Header>사진 등록</Header>
+              <Header>Your Photo</Header>
               <Canvas
                 innerRef={this.refCanvas}
                 width={canvasWidth}
@@ -219,10 +219,10 @@ class App extends React.Component<{}, AppState> {
 
   private getPhotoInfo(data: PhotoResponses) {
     if (data.responses.length === 0) {
-      return { message: "얼굴이 인식되지 않습니다." };
+      return { message: "The face is not recognized." };
     }
     if (data.responses.length > 1) {
-      return { message: "얼굴이 하나인 사진만 승인됩니다." };
+      return { message: "Only photos with a single face will be accepted." };
     }
 
     const faceDetection = data.responses[0].faceAnnotations[0];
@@ -250,7 +250,7 @@ class App extends React.Component<{}, AppState> {
     const cropHeight = Math.round(cropWidth / aspectRatio);
 
     if (cropWidth < minImageWidthPx) {
-      return { message: "지금보다 얼굴이 크게 보여야합니다." };
+      return { message: "The face should look bigger than now." };
     }
 
     const top = Math.round(topBound - cropHeight * facePositionTop);
@@ -267,7 +267,7 @@ class App extends React.Component<{}, AppState> {
           width: cropWidth,
           height: cropHeight,
         },
-        message: "얼굴이 화면 정중앙에 놓여야 합니다.",
+        message: "The face must be in the middle of the screen.",
       };
     }
 
@@ -278,7 +278,7 @@ class App extends React.Component<{}, AppState> {
         width: cropWidth,
         height: cropHeight,
       },
-      message: "사진이 등록되었습니다.",
+      message: "Photo Uploaded",
     };
   }
 
